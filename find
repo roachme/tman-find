@@ -5,6 +5,20 @@ PATTERN=
 TASKDIR=
 PRJNAME=
 TASKNAME=
+PREFIX="${TASKDIR}"
+
+
+
+# NOTE: what to find
+# 1. project name
+# 2. board name
+# 3. task id
+# 4. user files, directories, etc
+
+die() {
+	echo "$@" >&2
+	exit 1
+}
 
 function usage()
 {
@@ -62,16 +76,28 @@ while true; do
 done
 
 PATTERN="$1"
-if [ -z "$PATTERN" ]; then
-    echo "${PGNAME}: no pattern passed" >&2
-    exit 1
-fi
+[ -z "$PATTERN" ] && die "${PGNAME}: no pattern passed" >&2
 
-for prj in $(ls "$TASKDIR"); do
-    find "$TASKDIR/$prj" -maxdepth 1 -name "*${PATTERN}*" | while read -r res; do
-        res="${res/$TASKDIR\//}"
-        PRJ="$(echo "$res" | cut -f 1 -d '/')"
-        ID="$(echo "$res" | cut -f 2 -d '/')"
-        echo "$PRJ - $ID"
+
+
+function search()
+{
+    for prj in $(ls "$TASKDIR"); do
+        find "$TASKDIR/$prj" -maxdepth 1 -name "*${PATTERN}*" | while read -r res; do
+            res="${res/$TASKDIR\//}"
+            PRJ="$(echo "$res" | cut -f 1 -d '/')"
+            ID="$(echo "$res" | cut -f 2 -d '/')"
+            echo "$PRJ - $ID"
+        done
     done
-done
+}
+
+# Code stolen from Unix pass command
+cmd_find() {
+	[[ $# -eq 0 ]] && die "Usage: find pass-names..."
+	IFS="," eval 'echo "Search Terms: $*"'
+	local terms="*$(printf '%s*|*' "$@")"
+	tree -N -C -l --noreport -P "${terms%|*}" --prune --matchdirs --ignore-case "$TASKDIR" 3>&- | tail -n +2 | sed -E 's/\.gpg(\x1B\[[0-9]+m)?( ->|$)/\1\2/g'
+}
+
+cmd_find "$@"
